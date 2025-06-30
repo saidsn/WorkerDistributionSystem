@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerDistributionSystem.Ap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerDistributionSystem.Infrastructure", "WorkerDistributionSystem.Infrastructure\WorkerDistributionSystem.Infrastructure.csproj", "{A70BD111-DC55-4F0E-83C3-AE2B5F298779}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerDistributionSystem.WindowsService", "WorkerDistributionSystem.WindowsService\WorkerDistributionSystem.WindowsService.csproj", "{B07AA830-2F0D-4F94-B3E0-1F7C42B860C3}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerDistributionSystem.WorkerApp", "WorkerDistributionSystem.WorkerApp\WorkerDistributionSystem.WorkerApp.csproj", "{8442EE09-D2CF-4C74-816A-7A421CD9C2D7}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DB8A8CCC-F62D-446C-8238-1D378408CF94}"
@@ -18,8 +20,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerDistributionSystem.AdminCLI", "WorkerDistributionSystem.AdminCLI\WorkerDistributionSystem.AdminCLI.csproj", "{499900E9-77E2-41D4-92C5-2158EDE5B616}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerDistributionSystem.WindowsService", "WorkerDistributionSystem.WindowsService\WorkerDistributionSystem.WindowsService.csproj", "{3CD6C4FF-9348-4B52-A19C-3B4462641F31}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +39,10 @@ Global
 		{A70BD111-DC55-4F0E-83C3-AE2B5F298779}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A70BD111-DC55-4F0E-83C3-AE2B5F298779}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A70BD111-DC55-4F0E-83C3-AE2B5F298779}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B07AA830-2F0D-4F94-B3E0-1F7C42B860C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B07AA830-2F0D-4F94-B3E0-1F7C42B860C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B07AA830-2F0D-4F94-B3E0-1F7C42B860C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B07AA830-2F0D-4F94-B3E0-1F7C42B860C3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8442EE09-D2CF-4C74-816A-7A421CD9C2D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8442EE09-D2CF-4C74-816A-7A421CD9C2D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8442EE09-D2CF-4C74-816A-7A421CD9C2D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -47,10 +51,6 @@ Global
 		{499900E9-77E2-41D4-92C5-2158EDE5B616}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{499900E9-77E2-41D4-92C5-2158EDE5B616}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{499900E9-77E2-41D4-92C5-2158EDE5B616}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3CD6C4FF-9348-4B52-A19C-3B4462641F31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3CD6C4FF-9348-4B52-A19C-3B4462641F31}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3CD6C4FF-9348-4B52-A19C-3B4462641F31}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3CD6C4FF-9348-4B52-A19C-3B4462641F31}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

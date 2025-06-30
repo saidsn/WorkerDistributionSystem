@@ -1,10 +1,12 @@
-﻿namespace WorkerDistributionSystem.Domain.Enums
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace WorkerDistributionSystem.Domain.Enums
 {
-    public enum WorkerStatus
+    internal class Class1
     {
-        Connected,
-        Busy,
-        Idle,
-        Disconnected
     }
 }

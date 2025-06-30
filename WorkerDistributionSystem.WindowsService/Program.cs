@@ -1,40 +1,59 @@
-using WorkerDistributionSystem.Infrastructure;
-using WorkerDistributionSystem.Service.Services;
+﻿using WorkerDistributionSystem.Application.Services;
+using WorkerDistributionSystem.Domain.Interfaces;
+using WorkerDistributionSystem.Infrastructure.Communication;
+using WorkerDistributionSystem.Infrastructure.Repositories;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Windows Service support
-builder.Host.UseWindowsService();
-
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-builder.Services.AddInfrastructure();
-
-builder.Services.AddHostedService<WorkerDistributionService>();
-builder.Services.AddHostedService<HeartbeatMonitorService>();
-
-builder.Services.AddCors(options =>
+namespace WorkerDistributionSystem.WindowsService;
+public static class Program
 {
-    options.AddDefaultPolicy(policy =>
+    public static void Main(string[] args)
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+        var host = Host.CreateDefaultBuilder(args)
+            .ConfigureApplicationServices()
+            .ConfigureWindowsService()
+            .ConfigureApplicationLogging()
+            .Build();
 
-var app = builder.Build();
+        host.Run();
+    }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    private static IHostBuilder ConfigureApplicationServices(this IHostBuilder host)
+    {
+        host.ConfigureServices((context, services) =>
+        {
+            services.AddSingleton<IWorkerService, WorkerService>();
+            services.AddSingleton<ITaskQueue, InMemoryTaskQueue>();
+            services.AddSingleton<ICommunicationService, TcpCommunicationService>();
+
+            services.AddTransient<WorkerManagementService>();
+            services.AddTransient<TaskDistributionService>();
+
+            services.AddHostedService<WorkerDistributionBackgroundService>();
+        });
+
+        return host;
+    }
+
+    private static IHostBuilder ConfigureWindowsService(this IHostBuilder host)
+    {
+        host.UseWindowsService(options =>
+        {
+            options.ServiceName = "WorkerDistributionService";
+        });
+
+        return host;
+    }
+
+    private static IHostBuilder ConfigureApplicationLogging(this IHostBuilder host)
+    {
+        host.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.AddConsole();
+        });
+
+        return host;
+    }
 }
 
-app.UseCors();
-app.UseRouting();
-app.MapControllers();
 
-app.Run();

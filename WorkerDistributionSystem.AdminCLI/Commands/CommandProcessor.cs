@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using WorkerDistributionSystem.AdminCLI.Services.Abstract;
-using WorkerDistributionSystem.Application.Interfaces;
+using WorkerDistributionSystem.Domain.Interfaces;
 
 namespace WorkerDistributionSystem.AdminCLI.Commands
 {

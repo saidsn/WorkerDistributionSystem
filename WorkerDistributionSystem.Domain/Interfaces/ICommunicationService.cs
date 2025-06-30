@@ -1,4 +1,4 @@
-﻿namespace WorkerDistributionSystem.Application.Interfaces
+﻿namespace WorkerDistributionSystem.Domain.Interfaces
 {
 	public interface ICommunicationService
 	{
