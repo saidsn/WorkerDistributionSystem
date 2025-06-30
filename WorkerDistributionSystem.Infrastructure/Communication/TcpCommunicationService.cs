@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using WorkerDistributionSystem.Domain.Interfaces;
+using WorkerDistributionSystem.Application.Interfaces;
 
 namespace WorkerDistributionSystem.Infrastructure.Communication
 {

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using WorkerDistributionSystem.AdminCLI.Commands;
 using WorkerDistributionSystem.AdminCLI.Services.Abstract;
 using WorkerDistributionSystem.AdminCLI.Services.Concrete;
-using WorkerDistributionSystem.Domain.Interfaces;
+using WorkerDistributionSystem.Application.Interfaces;
 using WorkerDistributionSystem.Infrastructure.Repositories;
 
 namespace WorkerDistributionSystem.AdminCLI
