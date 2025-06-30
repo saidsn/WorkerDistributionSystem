@@ -16,17 +16,17 @@ namespace WorkerDistributionSystem.Application.Services
 
         public async Task<Guid> AddWorkerAsync(string workerName, int processId)
         {
-            return await _workerService.AddWorkerAsync(workerName, processId);
+            return await _workerService.AddAsync(workerName, processId);
         }
 
         public async Task<bool> RemoveWorkerAsync(Guid workerId)
         {
-            return await _workerService.RemoveWorkerAsync(workerId);
+            return await _workerService.RemoveAsync(workerId);
         }
 
         public async Task<List<WorkerDto>> GetAllWorkersAsync()
         {
-            var workers = await _workerService.GetAllWorkersAsync();
+            var workers = await _workerService.GetAllAsync();
             var workerDtos = new List<WorkerDto>();
 
             foreach (var worker in workers)
@@ -48,7 +48,7 @@ namespace WorkerDistributionSystem.Application.Services
 
         public async Task<WorkerDto?> GetWorkerStatusAsync(Guid workerId)
         {
-            var worker = await _workerService.GetWorkerAsync(workerId);
+            var worker = await _workerService.GetAsync(workerId);
             if (worker == null) return null;
 
             return new WorkerDto

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WorkerDistributionSystem.AdminCLI": {
+      "commandName": "Project",
+      "commandLineArgs": "\r\n"
+    }
+  }
+}

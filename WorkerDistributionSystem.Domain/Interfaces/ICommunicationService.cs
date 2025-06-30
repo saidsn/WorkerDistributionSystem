@@ -1,5 +1,4 @@
-﻿using System;
-namespace WorkerDistributionSystem.Domain.Interfaces
+﻿namespace WorkerDistributionSystem.Domain.Interfaces
 {
 	public interface ICommunicationService
 	{

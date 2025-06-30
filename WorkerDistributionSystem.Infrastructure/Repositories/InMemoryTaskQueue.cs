@@ -1,4 +1,5 @@
 ﻿using WorkerDistributionSystem.Domain.Entities;
+using WorkerDistributionSystem.Domain.Enums;
 using WorkerDistributionSystem.Domain.Interfaces;
 
 namespace WorkerDistributionSystem.Infrastructure.Repositories

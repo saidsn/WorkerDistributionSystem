@@ -1,4 +1,6 @@
-﻿namespace WorkerDistributionSystem.Domain.Entities
+﻿using WorkerDistributionSystem.Domain.Enums;
+
+namespace WorkerDistributionSystem.Domain.Entities
 {
 	public class WorkerTask
 	{
@@ -9,14 +11,6 @@
         public DateTime? CompletedAt { get; set; }
         public string? Result { get; set; }
         public WorkerTaskStatus Status { get; set; }
-    }
-
-    public enum WorkerTaskStatus
-    {
-        Pending,
-        InProgress,
-        Completed,
-        Failed
     }
 }
 

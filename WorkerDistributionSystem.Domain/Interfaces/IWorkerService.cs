@@ -1,15 +1,13 @@
-﻿using System;
-using WorkerDistributionSystem.Domain.Entities;
-
+﻿using WorkerDistributionSystem.Domain.Entities;
 namespace WorkerDistributionSystem.Domain.Interfaces
 {
 	public interface IWorkerService
 	{
-        Task<Guid> AddWorkerAsync(string workerName, int processId);
-        Task<bool> RemoveWorkerAsync(Guid workerId);
-        Task<Worker?> GetWorkerAsync(Guid workerId);
-        Task<List<Worker>> GetAllWorkersAsync();
-        Task<bool> UpdateWorkerStatusAsync(Guid workerId, bool isActive);
+        Task<Guid> AddAsync(string workerName, int processId);
+        Task<bool> RemoveAsync(Guid workerId);
+        Task<Worker?> GetAsync(Guid workerId);
+        Task<List<Worker>> GetAllAsync();
+        Task<bool> UpdateStatusAsync(Guid workerId, bool isActive);
     }
 }
 

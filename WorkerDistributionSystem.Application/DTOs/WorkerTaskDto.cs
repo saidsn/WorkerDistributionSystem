@@ -1,9 +1,8 @@
-﻿using System;
-using WorkerDistributionSystem.Domain.Entities;
+﻿using WorkerDistributionSystem.Domain.Enums;
 
 namespace WorkerDistributionSystem.Application.DTOs
 {
-	public class TaskDto
+	public class WorkerTaskDto
 	{
         public Guid Id { get; set; }
         public string Command { get; set; }

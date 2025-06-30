@@ -1,5 +1,4 @@
-﻿
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using WorkerDistributionSystem.Domain.Interfaces;
@@ -27,7 +26,6 @@ namespace WorkerDistributionSystem.Infrastructure.Communication
 
                 Console.WriteLine("TCP Server started on port 8080");
 
-                // Accept clients in background
                 _ = Task.Run(AcceptClientsAsync);
             }
             catch (Exception ex)

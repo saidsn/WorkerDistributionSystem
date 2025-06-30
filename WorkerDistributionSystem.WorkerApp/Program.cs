@@ -139,19 +139,13 @@ namespace WorkerDistributionSystem.WorkerApp
             {
                 var processInfo = new ProcessStartInfo
                 {
-                    FileName = "/bin/bash",
-                    Arguments = $"-c \"{command}\"",
+                    FileName = "cmd.exe",
+                    Arguments = $"/c {command}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
-
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                {
-                    processInfo.FileName = "cmd.exe";
-                    processInfo.Arguments = $"/c {command}";
-                }
 
                 using var process = Process.Start(processInfo);
                 if (process != null)

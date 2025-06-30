@@ -1,5 +1,4 @@
-﻿using System;
-namespace WorkerDistributionSystem.Application.DTOs
+﻿namespace WorkerDistributionSystem.Application.DTOs
 {
 	public class WorkerDto
 	{

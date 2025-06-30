@@ -1,5 +1,4 @@
-﻿using System;
-namespace WorkerDistributionSystem.Domain.Entities
+﻿namespace WorkerDistributionSystem.Domain.Entities
 {
 	public class Worker
 	{

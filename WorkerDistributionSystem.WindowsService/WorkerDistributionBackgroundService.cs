@@ -1,4 +1,5 @@
 ﻿using WorkerDistributionSystem.Application.Services;
+using WorkerDistributionSystem.Domain.Enums;
 using WorkerDistributionSystem.Domain.Interfaces;
 
 namespace WorkerDistributionSystem.WindowsService
@@ -22,24 +23,25 @@ namespace WorkerDistributionSystem.WindowsService
             _taskDistributionService = taskDistributionService;
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Worker  Distribution Service starting...");
 
             try
             {
                 await _communicationService.StartAsync();
+
                 _logger.LogInformation("TCP Communication service started");
 
                 _communicationService.MessageReceived += OnMessageReceived;
 
-                while (!stoppingToken.IsCancellationRequested)
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     try
                     {
                         await MonitorAndDistributeTasksAsync();
 
-                        await Task.Delay(5000, stoppingToken);
+                        await Task.Delay(5000, cancellationToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -48,7 +50,7 @@ namespace WorkerDistributionSystem.WindowsService
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error in service loop");
-                        await Task.Delay(10000, stoppingToken);
+                        await Task.Delay(10000, cancellationToken);
                     }
                 }
             }
@@ -156,7 +158,7 @@ namespace WorkerDistributionSystem.WindowsService
                     await _taskDistributionService.UpdateTaskResultAsync(
                         taskId,
                         result,
-                        WorkerDistributionSystem.Domain.Entities.WorkerTaskStatus.Completed);
+                        WorkerTaskStatus.Completed);
 
                     _logger.LogInformation($"Task {taskId} completed with result: {result}");
                 }

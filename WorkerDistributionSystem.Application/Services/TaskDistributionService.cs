@@ -1,5 +1,6 @@
 ﻿using WorkerDistributionSystem.Application.DTOs;
 using WorkerDistributionSystem.Domain.Entities;
+using WorkerDistributionSystem.Domain.Enums;
 using WorkerDistributionSystem.Domain.Interfaces;
 
 namespace WorkerDistributionSystem.Application.Services
@@ -20,15 +21,15 @@ namespace WorkerDistributionSystem.Application.Services
             return await _taskQueue.EnqueueTaskAsync(command, specificWorkerId);
         }
 
-        public async Task<List<TaskDto>> GetWorkerTasksAsync(Guid workerId)
+        public async Task<List<WorkerTaskDto>> GetWorkerTasksAsync(Guid workerId)
         {
             var tasks = await _taskQueue.GetWorkerTasksAsync(workerId);
-            var worker = await _workerService.GetWorkerAsync(workerId);
+            var worker = await _workerService.GetAsync(workerId);
 
-            var taskDtos = new List<TaskDto>();
+            var taskDtos = new List<WorkerTaskDto>();
             foreach (var task in tasks)
             {
-                taskDtos.Add(new TaskDto
+                taskDtos.Add(new WorkerTaskDto
                 {
                     Id = task.Id,
                     Command = task.Command,

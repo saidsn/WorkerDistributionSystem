@@ -1,4 +1,5 @@
 ﻿using WorkerDistributionSystem.Domain.Entities;
+using WorkerDistributionSystem.Domain.Enums;
 
 namespace WorkerDistributionSystem.Domain.Interfaces
 {

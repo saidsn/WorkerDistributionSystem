@@ -3,12 +3,12 @@ using WorkerDistributionSystem.Domain.Interfaces;
 
 namespace WorkerDistributionSystem.Infrastructure.Repositories
 {
-	public class InMemoryWorkerRepository :IWorkerService
+	public class WorkerService : IWorkerService
 	{
         private static readonly List<Worker> _workers = new List<Worker>();
         private static readonly object _lock = new object();
 
-        public Task<Guid> AddWorkerAsync(string workerName, int processId)
+        public Task<Guid> AddAsync(string workerName, int processId)
         {
             var worker = new Worker
             {
@@ -27,9 +27,10 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
             return Task.FromResult(worker.Id);
         }
 
-        public Task<bool> RemoveWorkerAsync(Guid workerId)
+        public Task<bool> RemoveAsync(Guid workerId)
         {
             bool result;
+
             lock (_lock)
             {
                 var worker = _workers.FirstOrDefault(w => w.Id == workerId);
@@ -39,9 +40,10 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
             return Task.FromResult(result);
         }
 
-        public Task<Worker?> GetWorkerAsync(Guid workerId)
+        public Task<Worker?> GetAsync(Guid workerId)
         {
             Worker? worker;
+
             lock (_lock)
             {
                 worker = _workers.FirstOrDefault(w => w.Id == workerId);
@@ -50,9 +52,10 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
             return Task.FromResult(worker);
         }
 
-        public Task<List<Worker>> GetAllWorkersAsync()
+        public Task<List<Worker>> GetAllAsync()
         {
             List<Worker> result;
+
             lock (_lock)
             {
                 result = new List<Worker>(_workers);
@@ -61,9 +64,10 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
             return Task.FromResult(result);
         }
 
-        public Task<bool> UpdateWorkerStatusAsync(Guid workerId, bool isActive)
+        public Task<bool> UpdateStatusAsync(Guid workerId, bool isActive)
         {
             bool result;
+
             lock (_lock)
             {
                 var worker = _workers.FirstOrDefault(w => w.Id == workerId);
