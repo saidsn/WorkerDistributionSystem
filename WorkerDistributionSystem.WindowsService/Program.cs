@@ -1,4 +1,4 @@
-﻿using WorkerDistributionSystem.Infrastructure;
+using WorkerDistributionSystem.Infrastructure;
 using WorkerDistributionSystem.Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,19 +6,15 @@ var builder = WebApplication.CreateBuilder(args);
 // Windows Service support
 builder.Host.UseWindowsService();
 
-// Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add Infrastructure dependencies
 builder.Services.AddInfrastructure();
 
-// Add Background Services
 builder.Services.AddHostedService<WorkerDistributionService>();
 builder.Services.AddHostedService<HeartbeatMonitorService>();
 
-// CORS policy (development üçün)
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -31,7 +27,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

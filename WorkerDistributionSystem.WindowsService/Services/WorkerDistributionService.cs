@@ -27,21 +27,13 @@ namespace WorkerDistributionSystem.Service.Services
                     var workerService = scope.ServiceProvider.GetRequiredService<IWorkerService>();
                     var taskService = scope.ServiceProvider.GetRequiredService<ITaskService>();
 
-                    // Service status-unu log et
+                    // Service durumunu log et
                     var serviceStatus = await workerService.GetServiceStatusAsync();
                     _logger.LogInformation(
-                        "Service Status - Connected: {connected}, Busy: {busy}, Idle: {idle}, Pending Tasks: {pending}",
+                        "Service Status - Connected Workers: {connectedWorkers}, Pending Tasks: {pendingTasks}",
                         serviceStatus.ConnectedWorkers,
-                        serviceStatus.BusyWorkers,
-                        serviceStatus.IdleWorkers,
                         serviceStatus.PendingTasks
                     );
-
-                    // Əgər pending task varsa və idle worker varsa, log et
-                    if (serviceStatus.PendingTasks > 0 && serviceStatus.IdleWorkers > 0)
-                    {
-                        _logger.LogInformation("Tasks are waiting for workers to pick them up...");
-                    }
 
                     // 30 saniyə gözlə
                     await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);

@@ -7,7 +7,6 @@ namespace WorkerDistributionSystem.Service.Services
     {
         private readonly ILogger<HeartbeatMonitorService> _logger;
         private readonly IServiceProvider _serviceProvider;
-        private readonly TimeSpan _heartbeatTimeout = TimeSpan.FromMinutes(2); // 2 dəqiqə timeout
 
         public HeartbeatMonitorService(
             ILogger<HeartbeatMonitorService> logger,
@@ -39,48 +38,23 @@ namespace WorkerDistributionSystem.Service.Services
                     await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
                 }
             }
-
-            _logger.LogInformation("Heartbeat Monitor Service stopped");
         }
 
         private async Task CheckInactiveWorkersAsync(IWorkerService workerService)
         {
             var workers = await workerService.GetAllWorkersAsync();
-            var inactiveThreshold = DateTime.UtcNow.Subtract(_heartbeatTimeout);
-            int inactiveCount = 0;
+            var inactiveThreshold = DateTime.UtcNow.AddMinutes(-2); // 2 dəqiqə heartbeat gəlməyibsə
 
             foreach (var worker in workers)
             {
                 if (worker.ConnectedAt < inactiveThreshold && worker.Status != WorkerStatus.Disconnected)
                 {
-                    _logger.LogWarning(
-                        "Worker {workerId} ({workerName}) marked as inactive. Last heartbeat: {lastSeen}",
-                        worker.Id,
-                        worker.Name,
-                        worker.ConnectedAt
-                    );
+                    _logger.LogWarning("Worker {workerId} ({workerName}) seems inactive. Last seen: {lastSeen}",
+                        worker.Id, worker.Name, worker.ConnectedAt);
 
                     await workerService.UpdateWorkerStatusAsync(worker.Id, false);
-                    inactiveCount++;
                 }
             }
-
-            if (inactiveCount > 0)
-            {
-                _logger.LogInformation("Marked {count} workers as inactive", inactiveCount);
-            }
-        }
-
-        public override async Task StartAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("Heartbeat Monitor Service is starting...");
-            await base.StartAsync(cancellationToken);
-        }
-
-        public override async Task StopAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("Heartbeat Monitor Service is stopping...");
-            await base.StopAsync(cancellationToken);
         }
     }
 }
