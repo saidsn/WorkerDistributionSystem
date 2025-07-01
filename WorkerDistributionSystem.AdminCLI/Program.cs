@@ -2,21 +2,21 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WorkerDistributionSystem.AdminCLI.Commands;
-using WorkerDistributionSystem.AdminCLI.Services.Abstract;
-using WorkerDistributionSystem.AdminCLI.Services.Concrete;
-using WorkerDistributionSystem.Domain.Interfaces;
-using WorkerDistributionSystem.Infrastructure.Repositories;
+using WorkerDistributionSystem.Application.Services.Implementations;
+using WorkerDistributionSystem.Application.Services.Interfaces;
+using WorkerDistributionSystem.Infrastructure.Repositories.Implementations;
+using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
 namespace WorkerDistributionSystem.AdminCLI
 {
     public class Program
     {
-        public static async Task Main(string[] args) 
+        public static async Task Main(string[] args)
         {
             var host = CreateHostBuilder().Build();
             var commandProcessor = host.Services.GetRequiredService<ICommandProcessor>();
 
-            await StartCLI(commandProcessor);  
+            await StartCLI(commandProcessor);
         }
 
         private static async Task StartCLI(ICommandProcessor commandProcessor)
@@ -27,26 +27,29 @@ namespace WorkerDistributionSystem.AdminCLI
             {
                 try
                 {
+                Start:
                     Console.Write("> ");
                     var input = Console.ReadLine();
 
-                    if (string.IsNullOrEmpty(input) ||
-                        input.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
-                        input.Equals("quit", StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrEmpty(input))
+                    {
+                        Console.WriteLine("Please enter command!");
+                        goto Start;
+                    }
+
+                    if (IsExitCommand(input))
                     {
                         Console.WriteLine("Goodbye!");
                         break;
                     }
 
-                    if (input.Equals("help", StringComparison.OrdinalIgnoreCase) ||
-                        input.Equals("--help", StringComparison.OrdinalIgnoreCase))
+                    if (IsHelpCommand(input))
                     {
                         ShowInstructions();
                         continue;
                     }
 
-                    if (input.Equals("clear", StringComparison.OrdinalIgnoreCase) ||
-                        input.Equals("cls", StringComparison.OrdinalIgnoreCase))
+                    if (IsClearCommand(input))
                     {
                         Console.Clear();
                         ShowInstructions();
@@ -58,20 +61,39 @@ namespace WorkerDistributionSystem.AdminCLI
                 }
                 catch (ArgumentException ex)
                 {
-                    Console.WriteLine($"❌ Error: {ex.Message}");
+                    Console.WriteLine($"Error: {ex.Message}");
                     Console.WriteLine("Type 'help' for available commands.");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"❌ Unexpected error: {ex.Message}");
+                    Console.WriteLine($"Unexpected error: {ex.Message}");
                 }
-            }   
+            }
+        }
+
+        private static bool IsClearCommand(string input)
+        {
+            return input.Equals("clear", StringComparison.OrdinalIgnoreCase) ||
+                         input.Equals("cls", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsHelpCommand(string input)
+        {
+            return input.Equals("help", StringComparison.OrdinalIgnoreCase) ||
+                         input.Equals("--help", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsExitCommand(string input)
+        {
+            return string.IsNullOrEmpty(input) ||
+                         input.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
+                         input.Equals("quit", StringComparison.OrdinalIgnoreCase);
         }
 
         private static IHostBuilder CreateHostBuilder()
         {
             return Host.CreateDefaultBuilder()
-                .ConfigureServices(ConfigureServices)
+                .ConfigureServices(ConfigureApplicationDependencies)
                 .ConfigureLogging(logging =>
                 {
                     logging.ClearProviders();
@@ -80,12 +102,18 @@ namespace WorkerDistributionSystem.AdminCLI
                 });
         }
 
-        private static void ConfigureServices(IServiceCollection services)
+        private static void ConfigureApplicationDependencies(IServiceCollection services)
         {
             services.AddScoped<ICommandProcessor, CommandProcessor>();
-            services.AddScoped<IServiceController, WindowsServiceController>();
-            services.AddScoped<IWorkerController, WorkerController>();
-            services.AddScoped<IWorkerService, WorkerService>();
+            services.AddScoped<IServiceStatusService, ServiceStatusService>();
+            services.AddScoped<IWorkerManagementService, WorkerManagementService>();
+            services.AddScoped<ITaskDistributionService, TaskDistributionService>();
+            services.AddLogging(configure => configure.AddConsole());
+
+            services.AddScoped<IWorkerRepository, WorkerRepository>();
+            services.AddScoped<ITaskRepository, TaskRepository>();
+            services.AddScoped<IServiceStatusRepository, ServiceStatusRepository>();
+            services.AddScoped<ICommunicationRepository, TcpCommunicationRepository>();
         }
 
         private static void ShowInstructions()

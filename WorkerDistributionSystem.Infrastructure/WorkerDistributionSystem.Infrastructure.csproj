@@ -13,15 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\WorkerDistributionSystem.Application\WorkerDistributionSystem.Application.csproj" />
     <ProjectReference Include="..\WorkerDistributionSystem.Domain\WorkerDistributionSystem.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="Communication\" />
     <None Remove="Repositories\" />
     <None Remove="Services\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Communication\" />
   </ItemGroup>
 </Project>

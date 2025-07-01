@@ -8,12 +8,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WorkerDistributionSystem.Domain\WorkerDistributionSystem.Domain.csproj" />
+    <ProjectReference Include="..\WorkerDistributionSystem.Infrastructure\WorkerDistributionSystem.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="Services\" />
     <None Remove="DTOs\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Services\" />
   </ItemGroup>
 </Project>

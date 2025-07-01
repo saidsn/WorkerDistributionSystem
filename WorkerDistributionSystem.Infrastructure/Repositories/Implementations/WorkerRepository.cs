@@ -1,10 +1,11 @@
 ﻿using WorkerDistributionSystem.Domain.Entities;
-using WorkerDistributionSystem.Domain.Interfaces;
+using WorkerDistributionSystem.Domain.Enums;
+using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
-namespace WorkerDistributionSystem.Infrastructure.Repositories
+namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
 {
-	public class WorkerService : IWorkerService
-	{
+    public class WorkerRepository : IWorkerRepository
+    {
         private static readonly List<Worker> _workers = new List<Worker>();
         private static readonly object _lock = new object();
 
@@ -16,7 +17,7 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
                 Name = workerName,
                 ProcessId = processId,
                 ConnectedAt = DateTime.UtcNow,
-                IsActive = true
+                Status = WorkerStatus.Connected
             };
 
             lock (_lock)
@@ -34,7 +35,16 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
             lock (_lock)
             {
                 var worker = _workers.FirstOrDefault(w => w.Id == workerId);
-                result = worker != null && _workers.Remove(worker);
+                if (worker != null)
+                {
+                    worker.Status = WorkerStatus.Disconnected;
+                    worker.DisconnectedAt = DateTime.UtcNow;
+                    result = _workers.Remove(worker);
+                }
+                else
+                {
+                    result = false;
+                }
             }
 
             return Task.FromResult(result);
@@ -64,26 +74,37 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
             return Task.FromResult(result);
         }
 
-        public Task<bool> UpdateStatusAsync(Guid workerId, bool isActive)
+        public Task<bool> UpdateStatusAsync(Guid workerId, WorkerStatus status)
         {
-            bool result;
-
             lock (_lock)
             {
                 var worker = _workers.FirstOrDefault(w => w.Id == workerId);
-                if (worker != null)
+                if (worker == null)
                 {
-                    worker.IsActive = isActive;
-                    result = true;
+                    return Task.FromResult(false);
                 }
-                else
+
+                worker.Status = status;
+
+                if (status == WorkerStatus.Disconnected)
                 {
-                    result = false;
+                    worker.DisconnectedAt = DateTime.UtcNow;
                 }
             }
 
-            return Task.FromResult(result);
+            return Task.FromResult(true);
+        }
+
+        public Worker? GetByNameAsync(string workerName)
+        {
+            var worker = _workers.FirstOrDefault(w => w.Name == workerName);
+
+            if (worker == null)
+            {
+                return null;
+            }
+
+            return worker;
         }
     }
 }
-

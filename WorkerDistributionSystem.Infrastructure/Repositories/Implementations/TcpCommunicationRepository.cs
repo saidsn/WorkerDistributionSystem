@@ -1,11 +1,11 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using WorkerDistributionSystem.Domain.Interfaces;
+using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
-namespace WorkerDistributionSystem.Infrastructure.Communication
+namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
 {
-    public class TcpCommunicationService : ICommunicationService
+    public class TcpCommunicationRepository : ICommunicationRepository
     {
         private TcpListener? _tcpListener;
         private readonly List<TcpClient> _clients = new List<TcpClient>();
@@ -79,6 +79,63 @@ namespace WorkerDistributionSystem.Infrastructure.Communication
             return await Task.FromResult(false);
         }
 
+        public void RegisterWorker(Guid workerId, object connection)
+        {
+            if (connection is TcpClient tcpClient)
+            {
+                lock (_lock)
+                {
+                    _workerClients[workerId] = tcpClient;
+                }
+                Console.WriteLine($"Worker {workerId} registered successfully");
+            }
+            else
+            {
+                throw new ArgumentException("Connection must be TcpClient", nameof(connection));
+            }
+        }
+
+        public Task<bool> IsWorkerConnectedAsync(Guid workerId)
+        {
+            bool isConnected;
+
+            lock (_lock)
+            {
+                isConnected = _workerClients.ContainsKey(workerId) &&
+                             _workerClients[workerId].Connected;
+            }
+
+            return Task.FromResult(isConnected);
+        }
+
+        public async Task DisconnectWorkerAsync(Guid workerId)
+        {
+            lock (_lock)
+            {
+                if (_workerClients.TryGetValue(workerId, out var client))
+                {
+                    client.Close();
+                    _workerClients.Remove(workerId);
+                    _clients.Remove(client);
+                    Console.WriteLine($"Worker {workerId} disconnected");
+                }
+            }
+
+            await Task.CompletedTask;
+        }
+
+        public Task<int> GetConnectedWorkerCountAsync()
+        {
+            int count;
+
+            lock (_lock)
+            {
+                count = _workerClients.Count(kvp => kvp.Value.Connected);
+            }
+
+            return Task.FromResult(count);
+        }
+
         private async Task AcceptClientsAsync()
         {
             while (_isRunning)
@@ -139,14 +196,6 @@ namespace WorkerDistributionSystem.Infrastructure.Communication
                     }
                 }
                 client.Close();
-            }
-        }
-
-        public void RegisterWorker(Guid workerId, TcpClient client)
-        {
-            lock (_lock)
-            {
-                _workerClients[workerId] = client;
             }
         }
     }

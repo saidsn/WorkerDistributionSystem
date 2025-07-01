@@ -1,22 +1,21 @@
 ﻿using WorkerDistributionSystem.Domain.Entities;
 using WorkerDistributionSystem.Domain.Enums;
-using WorkerDistributionSystem.Domain.Interfaces;
+using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
-namespace WorkerDistributionSystem.Infrastructure.Repositories
+namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
 {
-	public class InMemoryTaskQueue : ITaskQueue
+	public class TaskRepository : ITaskRepository
 	{
         private static readonly Queue<WorkerTask> _taskQueue = new Queue<WorkerTask>();
-        private static readonly List<WorkerTask> _allTasks = new List<WorkerTask>();
         private static readonly object _lock = new object();
 
-        public Task<Guid> EnqueueTaskAsync(string command, Guid? workerId = null)
+        public Task<Guid> EnqueueTaskAsync(string command, Guid workerId)
         {
             var task = new WorkerTask
             {
                 Id = Guid.NewGuid(),
                 Command = command,
-                WorkerId = workerId ?? Guid.Empty,
+                WorkerId = workerId,
                 CreatedAt = DateTime.UtcNow,
                 Status = WorkerTaskStatus.Pending
             };
@@ -24,7 +23,6 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
             lock (_lock)
             {
                 _taskQueue.Enqueue(task);
-                _allTasks.Add(task);
             }
 
             return Task.FromResult(task.Id);
@@ -47,11 +45,16 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
             return Task.FromResult(task);
         }
 
+        public void DequeueAllTask()
+        {
+            _taskQueue.Clear();
+        }
+
         public Task UpdateTaskResultAsync(Guid taskId, string result, WorkerTaskStatus status)
         {
             lock (_lock)
             {
-                var task = _allTasks.FirstOrDefault(t => t.Id == taskId);
+                var task = _taskQueue.FirstOrDefault(t => t.Id == taskId);
                 if (task != null)
                 {
                     task.Result = result;
@@ -69,7 +72,7 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories
 
             lock (_lock)
             {
-                tasks = _allTasks.Where(t => t.WorkerId == workerId).ToList();
+                tasks = _taskQueue.Where(t => t.WorkerId == workerId).ToList();
             }
 
             return Task.FromResult(tasks);

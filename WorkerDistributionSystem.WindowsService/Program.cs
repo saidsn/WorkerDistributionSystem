@@ -1,9 +1,10 @@
-﻿using WorkerDistributionSystem.Application.Services;
-using WorkerDistributionSystem.Domain.Interfaces;
-using WorkerDistributionSystem.Infrastructure.Communication;
-using WorkerDistributionSystem.Infrastructure.Repositories;
+﻿using WorkerDistributionSystem.Application.Services.Interfaces;
+using WorkerDistributionSystem.Application.Services.Implementations;
+using WorkerDistributionSystem.Infrastructure.Repositories.Implementations;
+using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
 namespace WorkerDistributionSystem.WindowsService;
+
 public static class Program
 {
     public static void Main(string[] args)
@@ -21,13 +22,16 @@ public static class Program
     {
         host.ConfigureServices((context, services) =>
         {
-            services.AddSingleton<IWorkerService, WorkerService>();
-            services.AddSingleton<ITaskQueue, InMemoryTaskQueue>();
-            services.AddSingleton<ICommunicationService, TcpCommunicationService>();
+            // Infrastructure Layer
+            services.AddSingleton<IWorkerRepository, WorkerRepository>();
+            services.AddSingleton<ITaskRepository, TaskRepository>();
+            services.AddSingleton<ICommunicationRepository, TcpCommunicationRepository>();
 
-            services.AddTransient<WorkerManagementService>();
-            services.AddTransient<TaskDistributionService>();
+            // Application Layer
+            services.AddScoped<IWorkerManagementService, WorkerManagementService>();
+            services.AddScoped<ITaskDistributionService, TaskDistributionService>();
 
+            // Background Service
             services.AddHostedService<WorkerDistributionBackgroundService>();
         });
 
@@ -50,10 +54,10 @@ public static class Program
         {
             logging.ClearProviders();
             logging.AddConsole();
+            logging.AddEventLog();
+            logging.SetMinimumLevel(LogLevel.Information);
         });
 
         return host;
     }
 }
-
-
