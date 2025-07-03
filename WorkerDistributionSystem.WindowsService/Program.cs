@@ -26,10 +26,12 @@ public static class Program
             services.AddSingleton<IWorkerRepository, WorkerRepository>();
             services.AddSingleton<ITaskRepository, TaskRepository>();
             services.AddSingleton<ICommunicationRepository, TcpCommunicationRepository>();
+            services.AddSingleton<IServiceStatusRepository, ServiceStatusRepository>();
 
             // Application Layer
-            services.AddScoped<IWorkerManagementService, WorkerManagementService>();
-            services.AddScoped<ITaskDistributionService, TaskDistributionService>();
+            services.AddSingleton<IWorkerManagementService, WorkerManagementService>();
+            services.AddSingleton<ITaskDistributionService, TaskDistributionService>();
+            services.AddSingleton<IServiceStatusService, ServiceStatusService>();
 
             // Background Service
             services.AddHostedService<WorkerDistributionBackgroundService>();

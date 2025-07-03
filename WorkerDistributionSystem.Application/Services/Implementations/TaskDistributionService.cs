@@ -13,9 +13,9 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
         private readonly IServiceStatusService _serviceStatusService;
 
         public TaskDistributionService(
-            ITaskRepository taskRepository,
-            IWorkerRepository workerRepository,
-            IServiceStatusService serviceStatusService)
+                ITaskRepository taskRepository,
+                IWorkerRepository workerRepository,
+                IServiceStatusService serviceStatusService)
         {
             _taskRepository = taskRepository;
             _workerRepository = workerRepository;
@@ -65,7 +65,7 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
 
             if (task != null)
             {
-                Console.WriteLine($"Task '{task.Command}' assigned to Worker {workerId}");
+                //Console.WriteLine($"Task '{task.Command}' assigned to Worker {workerId}");
 
                 await _workerRepository.UpdateStatusAsync(workerId, WorkerStatus.Busy);
             }
@@ -76,7 +76,12 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
         public async Task UpdateTaskResultAsync(Guid taskId, string result, WorkerTaskStatus status)
         {
             await _taskRepository.UpdateTaskResultAsync(taskId, result, status);
-            Console.WriteLine($"Task {taskId} completed with status: {status}");
+
+            var task = await _taskRepository.GetByIdAsync(taskId);
+            if (task != null)
+            {
+                await _workerRepository.UpdateStatusAsync(task.WorkerId, WorkerStatus.Idle);
+            }
         }
 
         public async Task<int> GetQueueCountAsync()

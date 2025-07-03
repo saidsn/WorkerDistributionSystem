@@ -10,11 +10,13 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
         private TcpListener? _tcpListener;
         private readonly List<TcpClient> _clients = new List<TcpClient>();
         private readonly Dictionary<Guid, TcpClient> _workerClients = new Dictionary<Guid, TcpClient>();
+        private readonly Dictionary<TcpClient, Guid> _clientWorkerMap = new Dictionary<TcpClient, Guid>(); // ✅ Əlavə
         private bool _isRunning = false;
         private readonly object _lock = new object();
 
         public bool IsRunning => _isRunning;
         public event EventHandler<string>? MessageReceived;
+        public event EventHandler<(string message, TcpClient client)>? MessageReceivedWithClient; // ✅ Əlavə
 
         public async Task StartAsync()
         {
@@ -48,6 +50,7 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 }
                 _clients.Clear();
                 _workerClients.Clear();
+                _clientWorkerMap.Clear(); // ✅ Əlavə
             }
 
             _tcpListener?.Stop();
@@ -86,6 +89,7 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 lock (_lock)
                 {
                     _workerClients[workerId] = tcpClient;
+                    _clientWorkerMap[tcpClient] = workerId; // ✅ Əlavə - reverse mapping
                 }
                 Console.WriteLine($"Worker {workerId} registered successfully");
             }
@@ -116,6 +120,7 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 {
                     client.Close();
                     _workerClients.Remove(workerId);
+                    _clientWorkerMap.Remove(client); // ✅ Əlavə
                     _clients.Remove(client);
                     Console.WriteLine($"Worker {workerId} disconnected");
                 }
@@ -177,7 +182,11 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                     if (bytesRead == 0) break;
 
                     var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    MessageReceived?.Invoke(this, message.Trim());
+                    var trimmedMessage = message.Trim();
+
+                    // ✅ Hər iki event-i invoke et
+                    MessageReceived?.Invoke(this, trimmedMessage);
+                    MessageReceivedWithClient?.Invoke(this, (trimmedMessage, client));
                 }
             }
             catch (Exception ex)
@@ -189,10 +198,13 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 lock (_lock)
                 {
                     _clients.Remove(client);
-                    var workerToRemove = _workerClients.FirstOrDefault(w => w.Value == client);
-                    if (workerToRemove.Key != Guid.Empty)
+
+                    // ✅ Təkmilləşdirilmiş cleanup
+                    if (_clientWorkerMap.TryGetValue(client, out var workerId))
                     {
-                        _workerClients.Remove(workerToRemove.Key);
+                        _workerClients.Remove(workerId);
+                        _clientWorkerMap.Remove(client);
+                        Console.WriteLine($"Worker {workerId} disconnected (client cleanup)");
                     }
                 }
                 client.Close();

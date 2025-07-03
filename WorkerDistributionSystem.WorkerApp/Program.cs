@@ -10,9 +10,11 @@ namespace WorkerDistributionSystem.WorkerApp
     public class Program
     {
         private static string? _workerName;
+        private static Guid _workerId = Guid.Empty; // ✅ Əlavə
         private static TcpClient? _tcpClient;
         private static NetworkStream? _stream;
         private static ILogger<Program>? _logger;
+        private static CancellationTokenSource _cancellationTokenSource = new();
 
         public static async Task Main(string[] args)
         {
@@ -29,11 +31,26 @@ namespace WorkerDistributionSystem.WorkerApp
 
             _logger.LogInformation($"Starting Worker: {_workerName}");
 
+            // ✅ Graceful shutdown
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                e.Cancel = true;
+                _cancellationTokenSource.Cancel();
+            };
+
             try
             {
                 await ConnectToServerAsync();
                 await RegisterWorkerAsync();
+
+                // ✅ Heartbeat task başlat
+                var heartbeatTask = Task.Run(() => SendHeartbeatAsync(_cancellationTokenSource.Token));
+
                 await ListenForTasksAsync();
+
+                // ✅ Heartbeat task-ı cancel et
+                _cancellationTokenSource.Cancel();
+                await heartbeatTask;
             }
             catch (Exception ex)
             {
@@ -74,7 +91,7 @@ namespace WorkerDistributionSystem.WorkerApp
                 if (_stream != null)
                 {
                     await _stream.WriteAsync(data, 0, data.Length);
-                    _logger.LogInformation($"Worker {_workerName} registered with server");
+                    _logger.LogInformation($"Worker {_workerName} registration request sent");
                 }
             }
             catch (Exception ex)
@@ -88,7 +105,7 @@ namespace WorkerDistributionSystem.WorkerApp
         {
             var buffer = new byte[4096];
 
-            while (_tcpClient?.Connected == true)
+            while (_tcpClient?.Connected == true && !_cancellationTokenSource.Token.IsCancellationRequested)
             {
                 try
                 {
@@ -115,16 +132,33 @@ namespace WorkerDistributionSystem.WorkerApp
         {
             try
             {
-                var parts = message.Split(':', 3);
-                if (parts.Length == 3 && parts[0] == "EXECUTE")
+                var parts = message.Split(':', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0) return;
+
+                var messageType = parts[0].ToUpper();
+
+                switch (messageType)
                 {
-                    var command = parts[1];
-                    var taskId = parts[2];
+                    case "REGISTERED": // ✅ Əlavə
+                        if (parts.Length >= 2 && Guid.TryParse(parts[1], out var workerId))
+                        {
+                            _workerId = workerId;
+                            _logger.LogInformation($"Worker registered with ID: {_workerId}");
+                        }
+                        break;
 
-                    _logger.LogInformation($"Executing command: {command} (Task: {taskId})");
+                    case "EXECUTE":
+                        if (parts.Length >= 3)
+                        {
+                            var command = parts[1];
+                            var taskId = parts[2];
 
-                    var result = await ExecuteCommandAsync(command);
-                    await SendResultAsync(taskId, result);
+                            _logger.LogInformation($"Executing command: {command} (Task: {taskId})");
+
+                            var result = await ExecuteCommandAsync(command);
+                            await SendResultAsync(taskId, result);
+                        }
+                        break;
                 }
             }
             catch (Exception ex)
@@ -157,17 +191,17 @@ namespace WorkerDistributionSystem.WorkerApp
 
                     if (!string.IsNullOrEmpty(error))
                     {
-                        return $"Error: {error}";
+                        return $"ERROR: {error}";
                     }
 
                     return string.IsNullOrEmpty(output) ? "Command executed successfully" : output.Trim();
                 }
 
-                return "Failed to start process";
+                return "ERROR: Failed to start process";
             }
             catch (Exception ex)
             {
-                return $"Exception: {ex.Message}";
+                return $"ERROR: {ex.Message}";
             }
         }
 
@@ -175,18 +209,52 @@ namespace WorkerDistributionSystem.WorkerApp
         {
             try
             {
-                var resultMessage = $"RESULT:{taskId}:{result}";
+                // ✅ WorkerId əlavə et
+                var resultMessage = $"RESULT:{taskId}:{_workerId}:{result}";
                 var data = Encoding.UTF8.GetBytes(resultMessage + "\n");
 
                 if (_stream != null)
                 {
                     await _stream.WriteAsync(data, 0, data.Length);
-                    _logger.LogInformation($"Sent result for task {taskId}: {result}");
+                    _logger.LogInformation($"Sent result for task {taskId}");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to send result for task {taskId}");
+            }
+        }
+
+        // ✅ Heartbeat functionality
+        private static async Task SendHeartbeatAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested && _tcpClient?.Connected == true)
+            {
+                try
+                {
+                    if (_workerId != Guid.Empty)
+                    {
+                        var heartbeatMessage = $"HEARTBEAT:{_workerId}";
+                        var data = Encoding.UTF8.GetBytes(heartbeatMessage + "\n");
+
+                        if (_stream != null)
+                        {
+                            await _stream.WriteAsync(data, 0, data.Length);
+                            _logger.LogDebug($"Sent heartbeat");
+                        }
+                    }
+
+                    await Task.Delay(30000, cancellationToken); // 30 saniyə
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending heartbeat");
+                    break;
+                }
             }
         }
 

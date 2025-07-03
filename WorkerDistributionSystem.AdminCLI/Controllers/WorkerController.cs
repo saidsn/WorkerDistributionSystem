@@ -1,4 +1,5 @@
 ﻿using WorkerDistributionSystem.Application.Services.Interfaces;
+using WorkerDistributionSystem.Domain.Enums;
 
 namespace WorkerDistributionSystem.AdminCLI.Controllers
 {
@@ -17,22 +18,17 @@ namespace WorkerDistributionSystem.AdminCLI.Controllers
 
         public async Task<string> ExecuteCommandAsync(string command)
         {
-            if (string.IsNullOrWhiteSpace(command))
-            {
-                return "Command cannot be empty";
-            }
-
             try
             {
-                var worker = await _workerManagementService.GetWorkerByNameAsync(command);
-                if (worker == null)
+                var workers = await _workerManagementService.GetAllWorkersAsync();
+                var availableWorker = workers.FirstOrDefault(w => w.Status == WorkerStatus.Idle);
+
+                if (availableWorker == null)
                 {
-                    Console.WriteLine("Worker not found!");
-                    return string.Empty;
+                    return "No available workers found";
                 }
 
-                var taskId = await _taskDistributionService.ExecuteCommandAsync(command, worker.Id);
-
+                var taskId = await _taskDistributionService.ExecuteCommandAsync(command, availableWorker.Id);
                 return $"Command '{command}' queued successfully with Task ID: {taskId}";
             }
             catch (Exception ex)

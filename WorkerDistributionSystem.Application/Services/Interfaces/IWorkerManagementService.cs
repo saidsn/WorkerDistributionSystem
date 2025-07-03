@@ -1,4 +1,5 @@
 ﻿using WorkerDistributionSystem.Application.DTOs;
+using WorkerDistributionSystem.Domain.Enums;
 
 namespace WorkerDistributionSystem.Application.Services.Interfaces
 {
@@ -9,5 +10,6 @@ namespace WorkerDistributionSystem.Application.Services.Interfaces
         Task<List<WorkerDto>> GetAllWorkersAsync();
         Task<WorkerDto?> GetWorkerStatusAsync(Guid workerId);
         Task<WorkerDto?> GetWorkerByNameAsync(string workerName);
+        Task UpdateStatusAsync(Guid workerId, WorkerStatus status);
     }
 }

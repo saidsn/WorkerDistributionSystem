@@ -37,8 +37,8 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 var worker = _workers.FirstOrDefault(w => w.Id == workerId);
                 if (worker != null)
                 {
-                    worker.Status = WorkerStatus.Disconnected;
-                    worker.DisconnectedAt = DateTime.UtcNow;
+                    //worker.Status = WorkerStatus.Disconnected;
+                    //worker.DisconnectedAt = DateTime.UtcNow;
                     result = _workers.Remove(worker);
                 }
                 else
@@ -95,16 +95,10 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
             return Task.FromResult(true);
         }
 
-        public Worker? GetByNameAsync(string workerName)
+        public Task<Worker?> GetByNameAsync(string workerName)
         {
             var worker = _workers.FirstOrDefault(w => w.Name == workerName);
-
-            if (worker == null)
-            {
-                return null;
-            }
-
-            return worker;
+            return Task.FromResult(worker);
         }
     }
 }

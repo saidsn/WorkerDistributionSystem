@@ -1,5 +1,6 @@
 ﻿using WorkerDistributionSystem.Application.DTOs;
 using WorkerDistributionSystem.Application.Services.Interfaces;
+using WorkerDistributionSystem.Domain.Enums;
 using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
 namespace WorkerDistributionSystem.Application.Services.Implementations
@@ -16,6 +17,9 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
         public async Task<Guid> AddWorkerAsync(string workerName, int processId)
         {
             var workerId = await _workerRepository.AddAsync(workerName, processId);
+
+            await _workerRepository.UpdateStatusAsync(workerId, WorkerStatus.Idle);
+
             return workerId;
         }
 
@@ -65,7 +69,7 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
 
         public async Task<WorkerDto?> GetWorkerByNameAsync(string workerName)
         {
-            var worker = _workerRepository.GetByNameAsync(workerName);
+            var worker = await _workerRepository.GetByNameAsync(workerName);
             if (worker == null)
             {
                 return null;
@@ -82,6 +86,11 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
             };
 
             return dto;
+        }
+
+        public async Task UpdateStatusAsync(Guid workerId, WorkerStatus status)
+        {
+            await _workerRepository.UpdateStatusAsync(workerId, status);
         }
     }
 }

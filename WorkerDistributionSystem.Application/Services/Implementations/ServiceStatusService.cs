@@ -9,8 +9,8 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
         private readonly IServiceStatusRepository _statusRepository;
 
         public ServiceStatusService(
-            IServiceStatusRepository statusRepository,
-            IWorkerRepository workerRepository)
+            IServiceStatusRepository statusRepository
+            )
         {
             _statusRepository = statusRepository;
         }

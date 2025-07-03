@@ -2,10 +2,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WorkerDistributionSystem.AdminCLI.Commands;
-using WorkerDistributionSystem.Application.Services.Implementations;
-using WorkerDistributionSystem.Application.Services.Interfaces;
-using WorkerDistributionSystem.Infrastructure.Repositories.Implementations;
-using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
 namespace WorkerDistributionSystem.AdminCLI
 {
@@ -105,15 +101,7 @@ namespace WorkerDistributionSystem.AdminCLI
         private static void ConfigureApplicationDependencies(IServiceCollection services)
         {
             services.AddScoped<ICommandProcessor, CommandProcessor>();
-            services.AddScoped<IServiceStatusService, ServiceStatusService>();
-            services.AddScoped<IWorkerManagementService, WorkerManagementService>();
-            services.AddScoped<ITaskDistributionService, TaskDistributionService>();
             services.AddLogging(configure => configure.AddConsole());
-
-            services.AddScoped<IWorkerRepository, WorkerRepository>();
-            services.AddScoped<ITaskRepository, TaskRepository>();
-            services.AddScoped<IServiceStatusRepository, ServiceStatusRepository>();
-            services.AddScoped<ICommunicationRepository, TcpCommunicationRepository>();
         }
 
         private static void ShowInstructions()
@@ -123,8 +111,8 @@ namespace WorkerDistributionSystem.AdminCLI
             Console.WriteLine();
             Console.WriteLine("Commands:");
             Console.WriteLine("  worker execute \"<command>\"  - Execute command on available worker");
-            Console.WriteLine("  worker add                   - Add new worker instance");
-            Console.WriteLine("  worker remove                - Remove worker instance");
+            Console.WriteLine("  worker add <worker_name>     - Add new worker instance");
+            Console.WriteLine("  worker remove <worker_name>  - Remove worker instance");
             Console.WriteLine("  worker status                - Show workers status");
             Console.WriteLine("  service start                - Start the Windows service");
             Console.WriteLine("  service stop                 - Stop the Windows service");

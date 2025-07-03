@@ -1,4 +1,5 @@
 ﻿using WorkerDistributionSystem.Application.DTOs;
+using WorkerDistributionSystem.Application.Events;
 using WorkerDistributionSystem.Domain.Entities;
 using WorkerDistributionSystem.Domain.Enums;
 
