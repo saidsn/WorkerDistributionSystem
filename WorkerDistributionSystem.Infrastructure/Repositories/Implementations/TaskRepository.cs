@@ -4,10 +4,12 @@ using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
 namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations;
 
-	public class TaskRepository : ITaskRepository
-	{
+public class TaskRepository : ITaskRepository
+{
     private static readonly Queue<WorkerTask> _taskQueue = new Queue<WorkerTask>();
+
     private static readonly Dictionary<Guid, WorkerTask> _allTasks = new();
+
     private static readonly object _lock = new object();
 
     public Task<Guid> EnqueueTaskAsync(string command, Guid workerId)

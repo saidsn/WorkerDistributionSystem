@@ -1,19 +1,39 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Extensions.Configuration;
+using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace WorkerDistributionSystem.AdminCLI.Commands
 {
     public class CommandProcessor : ICommandProcessor
     {
-        private Process? _serviceProcess;
-        private readonly Dictionary<string, Process> _workerProcesses = new();
-        private readonly string _serviceExePath = Path.Combine("..", "..", "..", "..", "WorkerDistributionSystem.WindowsService", "bin", "Debug", "net8.0", "WorkerDistributionSystem.WindowsService.exe");
-        private readonly string _workerExePath = Path.Combine("..", "..", "..", "..", "WorkerDistributionSystem.WorkerApp", "bin", "Debug", "net8.0", "WorkerDistributionSystem.WorkerApp.exe");
 
+        #region Constants
+
+        private const string ServicePath = "ServiceSettings:ServiceExePath";
+
+        private const string WorkerPath = "ServiceSettings:WorkerExePath";
+
+        #endregion
+
+        private Process? _serviceProcess;
+
+        private readonly Dictionary<string, Process> _workerProcesses = new();
+
+        private readonly string _serviceExePath;
+
+        private readonly string _workerExePath;
+
+        private readonly IConfiguration _configuration;
+
+        public CommandProcessor(IConfiguration configuration)
+        {
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(IConfiguration));
+            _serviceExePath = Path.GetFullPath(_configuration[ServicePath]!);
+            _workerExePath = Path.GetFullPath(_configuration[WorkerPath]!);
+        }
         public async Task ProcessAsync(string[] args)
-        {   
+        {
             if (args.Length == 0)
             {
                 throw new ArgumentException("No command provided");
@@ -33,7 +53,6 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
             }
         }
 
-        //SERVICE-RELATED METHODS
         private async Task ProcessServiceCommand(string[] args)
         {
             if (args.Length < 2)
@@ -73,7 +92,7 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                 {
                     FileName = _serviceExePath,
                     UseShellExecute = true,
-                    CreateNoWindow = false, 
+                    CreateNoWindow = false,
                     WindowStyle = ProcessWindowStyle.Normal
                 };
 
@@ -82,8 +101,6 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                 if (_serviceProcess != null)
                 {
                     Console.WriteLine($"Windows Service started successfully (PID: {_serviceProcess.Id})");
-
-                   
                     await Task.Delay(3000);
                 }
             }
@@ -99,7 +116,6 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
             {
                 Console.WriteLine("Stopping Windows Service and all workers...");
 
-                // 1. Bütün Worker proseslərini öldür
                 foreach (var kvp in _workerProcesses.ToList())
                 {
                     var workerName = kvp.Key;
@@ -115,7 +131,6 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                     _workerProcesses.Remove(workerName);
                 }
 
-                // 2. Service prosesini öldür
                 if (_serviceProcess != null && !_serviceProcess.HasExited)
                 {
                     Console.WriteLine("Stopping Windows Service...");
@@ -149,12 +164,10 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
             {
                 var workerName = kvp.Key;
                 var process = kvp.Value;
-
                 Console.WriteLine($"  - {workerName} (PID: {process.Id}) - {(process.HasExited ? "STOPPED" : "RUNNING")}");
             }
         }
 
-        // WORKER-RELATED METHODS
         private async Task ProcessWorkerCommand(string[] args)
         {
             if (args.Length < 2)
@@ -203,11 +216,11 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                 case "status":
                     if (args.Length == 3)
                     {
-                        await ShowWorkerStatusAsync(args[2]); 
+                        await ShowWorkerStatusAsync(args[2]);
                     }
                     else
                     {
-                        await ShowAllWorkerStatusAsync(); 
+                        await ShowAllWorkerStatusAsync();
                     }
                     break;
 
@@ -246,9 +259,7 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                 if (workerProcess != null)
                 {
                     _workerProcesses[workerName] = workerProcess;
-
                     Console.WriteLine($"Worker '{workerName}' started successfully (PID: {workerProcess.Id})");
-
                     await Task.Delay(2000);
                 }
             }
@@ -272,7 +283,6 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                     }
 
                     _workerProcesses.Remove(workerName);
-
                     Console.WriteLine($"Worker '{workerName}' stopped successfully");
                 }
                 else
@@ -311,7 +321,6 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                     }
 
                     _workerProcesses.Remove(workerName);
-                    //Console.WriteLine($"Worker '{workerName}' stopped");
                 }
 
                 Console.WriteLine("All workers removed successfully");
@@ -326,11 +335,11 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
         {
             try
             {
-                using var tcpClient = new TcpClient();
-
-                // ✅ Timeout əlavə et
-                tcpClient.ReceiveTimeout = 60000; // 60 saniyə
-                tcpClient.SendTimeout = 10000;    // 10 saniyə
+                using var tcpClient = new TcpClient
+                {
+                    ReceiveTimeout = 60000,
+                    SendTimeout = 10000
+                };
 
                 await tcpClient.ConnectAsync("127.0.0.1", 8080);
 
@@ -340,37 +349,58 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
 
                 await writer.WriteLineAsync($"ADMIN_EXECUTE:{command}");
 
-                // İlk response
                 var firstResponse = await reader.ReadLineAsync();
-                Console.WriteLine($"[DEBUG] First response: {firstResponse}");
+                Console.WriteLine($"First response: {firstResponse}");
 
                 if (firstResponse?.StartsWith("TASK_QUEUED:") == true)
                 {
                     Console.WriteLine("Task queued successfully. Waiting for result...");
 
-                    // ✅ Timeout ilə ikinci response
-                    var secondResponseTask = reader.ReadLineAsync();
-                    var timeoutTask = Task.Delay(30000); // 30 saniyə timeout
+                    string secondResponse = null;
+                    var attempts = 0;
+                    const int maxAttempts = 10;
 
-                    var completedTask = await Task.WhenAny(secondResponseTask, timeoutTask);
-
-                    if (completedTask == timeoutTask)
+                    while (attempts < maxAttempts)
                     {
-                        Console.WriteLine("Timeout: No response received within 30 seconds");
-                        return;
+                        var line = await reader.ReadLineAsync();
+                        if (line?.StartsWith("RESULT:") == true)
+                        {
+                            secondResponse = line;
+                            break;
+                        }
+                        attempts++;
+                        await Task.Delay(500);
                     }
-
-                    var secondResponse = await secondResponseTask;
-                    Console.WriteLine($"[DEBUG] Second response: {secondResponse}");
 
                     if (secondResponse?.StartsWith("RESULT:") == true)
                     {
-                        var result = secondResponse.Substring("RESULT:".Length);
-                        Console.WriteLine($"Command Result: {result}");
+                        try
+                        {
+                            var base64Result = secondResponse.Substring(7);
+
+                            var padding = base64Result.Length % 4;
+                            if (padding != 0)
+                            {
+                                base64Result += new string('=', 4 - padding);
+                            }
+
+                            var resultBytes = Convert.FromBase64String(base64Result);
+                            var decodedResult = Encoding.UTF8.GetString(resultBytes);
+
+                            Console.WriteLine("Command Result:");
+                            Console.WriteLine(decodedResult);
+                        }
+                        catch (FormatException ex)
+                        {
+                            Console.WriteLine("Invalid Base64 result received.");
+                            Console.WriteLine($"Error: {ex.Message}");
+                            Console.WriteLine($"Base64 length: {secondResponse.Length - 7}");
+                            Console.WriteLine($"First 100 chars: {secondResponse.Substring(0, Math.Min(100, secondResponse.Length))}");
+                        }
                     }
                     else
                     {
-                        Console.WriteLine($"Unexpected response: {secondResponse}");
+                        Console.WriteLine("No RESULT response received after multiple attempts.");
                     }
                 }
                 else if (firstResponse?.StartsWith("ERROR:") == true)
@@ -387,8 +417,6 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                 Console.WriteLine($"Execute command failed: {ex.Message}");
             }
         }
-
-
         private async Task ShowAllWorkerStatusAsync()
         {
             if (_workerProcesses.Count == 0)
@@ -402,7 +430,6 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
             {
                 var workerName = kvp.Key;
                 var process = kvp.Value;
-
                 Console.WriteLine($"  - {workerName} (PID: {process.Id}) - {(process.HasExited ? "STOPPED" : "RUNNING")}");
             }
         }

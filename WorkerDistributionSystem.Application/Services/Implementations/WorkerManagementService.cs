@@ -11,7 +11,7 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
 
         public WorkerManagementService(IWorkerRepository workerRepository)
         {
-            _workerRepository = workerRepository;
+            _workerRepository = workerRepository ?? throw new ArgumentNullException(nameof(workerRepository));
         }
 
         public async Task<Guid> AddWorkerAsync(string workerName, int processId)

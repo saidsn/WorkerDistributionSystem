@@ -8,10 +8,9 @@ public class ServiceStatusService : IServiceStatusService
 
     public ServiceStatusService(IServiceStatusRepository statusRepository)
     {
-        _statusRepository = statusRepository;
+        _statusRepository = statusRepository ?? throw new ArgumentNullException(nameof(statusRepository));
     }
 
-    // ✅ Əlavə et
     public async Task SetServiceRunningAsync(bool isRunning)
     {
         if (isRunning)
@@ -24,7 +23,6 @@ public class ServiceStatusService : IServiceStatusService
         }
     }
 
-    // ✅ Əlavə et
     public async Task<bool> IsServiceRunningAsync()
     {
         var status = await _statusRepository.GetStatusAsync();

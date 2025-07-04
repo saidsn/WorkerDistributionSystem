@@ -9,17 +9,19 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
     public class TaskDistributionService : ITaskDistributionService
     {
         private readonly ITaskRepository _taskRepository;
+
         private readonly IWorkerRepository _workerRepository;
+
         private readonly IServiceStatusService _serviceStatusService;
 
         public TaskDistributionService(
-                ITaskRepository taskRepository,
-                IWorkerRepository workerRepository,
-                IServiceStatusService serviceStatusService)
+            ITaskRepository taskRepository,
+            IWorkerRepository workerRepository,
+            IServiceStatusService serviceStatusService)
         {
-            _taskRepository = taskRepository;
-            _workerRepository = workerRepository;
-            _serviceStatusService = serviceStatusService;
+            _taskRepository = taskRepository ?? throw new ArgumentNullException(nameof(taskRepository));
+            _workerRepository = workerRepository ?? throw new ArgumentNullException(nameof(workerRepository));
+            _serviceStatusService = serviceStatusService ?? throw new ArgumentNullException(nameof(serviceStatusService));
         }
 
         public async Task<Guid> ExecuteCommandAsync(string command, Guid specificWorkerId)
@@ -31,7 +33,6 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
             }
 
             var taskId = await _taskRepository.EnqueueTaskAsync(command, specificWorkerId);
-            Console.WriteLine($"Command '{command}' queued with Task ID: {taskId}");
             return taskId;
         }
 
@@ -41,6 +42,7 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
             var worker = await _workerRepository.GetAsync(workerId);
 
             var taskDtos = new List<WorkerTaskDto>();
+
             foreach (var task in tasks)
             {
                 taskDtos.Add(new WorkerTaskDto
@@ -85,7 +87,6 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
         public async Task<int> GetQueueCountAsync()
         {
             var count = await _taskRepository.GetQueueCountAsync();
-            Console.WriteLine($"[DEBUG] GetQueueCountAsync returned: {count}");
             return count;
         }
     }

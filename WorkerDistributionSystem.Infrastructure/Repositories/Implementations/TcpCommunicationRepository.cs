@@ -8,15 +8,16 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
     public class TcpCommunicationRepository : ICommunicationRepository
     {
         private TcpListener? _tcpListener;
-        private readonly List<TcpClient> _clients = new List<TcpClient>();
-        private readonly Dictionary<Guid, TcpClient> _workerClients = new Dictionary<Guid, TcpClient>();
-        private readonly Dictionary<TcpClient, Guid> _clientWorkerMap = new Dictionary<TcpClient, Guid>(); // ✅ Əlavə
+        private readonly List<TcpClient> _clients = new();
+        private readonly Dictionary<Guid, TcpClient> _workerClients = new();
+        private readonly Dictionary<TcpClient, Guid> _clientWorkerMap = new();
         private bool _isRunning = false;
-        private readonly object _lock = new object();
+        private readonly object _lock = new();
 
         public bool IsRunning => _isRunning;
+
         public event EventHandler<string>? MessageReceived;
-        public event EventHandler<(string message, TcpClient client)>? MessageReceivedWithClient; // ✅ Əlavə
+        public event EventHandler<(string message, TcpClient client)>? MessageReceivedWithClient;
 
         public async Task StartAsync()
         {
@@ -26,13 +27,11 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 _tcpListener.Start();
                 _isRunning = true;
 
-                Console.WriteLine("TCP Server started on port 8080");
-
                 _ = Task.Run(AcceptClientsAsync);
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error starting TCP server: {ex.Message}");
+                throw;
             }
 
             await Task.CompletedTask;
@@ -48,13 +47,13 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 {
                     client?.Close();
                 }
+
                 _clients.Clear();
                 _workerClients.Clear();
-                _clientWorkerMap.Clear(); // ✅ Əlavə
+                _clientWorkerMap.Clear();
             }
 
             _tcpListener?.Stop();
-            Console.WriteLine("TCP Server stopped");
 
             await Task.CompletedTask;
         }
@@ -74,9 +73,8 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                     }
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error sending message: {ex.Message}");
             }
 
             return await Task.FromResult(false);
@@ -89,9 +87,8 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 lock (_lock)
                 {
                     _workerClients[workerId] = tcpClient;
-                    _clientWorkerMap[tcpClient] = workerId; // ✅ Əlavə - reverse mapping
+                    _clientWorkerMap[tcpClient] = workerId;
                 }
-                Console.WriteLine($"Worker {workerId} registered successfully");
             }
             else
             {
@@ -106,7 +103,7 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
             lock (_lock)
             {
                 isConnected = _workerClients.ContainsKey(workerId) &&
-                             _workerClients[workerId].Connected;
+                              _workerClients[workerId].Connected;
             }
 
             return Task.FromResult(isConnected);
@@ -120,9 +117,8 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 {
                     client.Close();
                     _workerClients.Remove(workerId);
-                    _clientWorkerMap.Remove(client); // ✅ Əlavə
+                    _clientWorkerMap.Remove(client);
                     _clients.Remove(client);
-                    Console.WriteLine($"Worker {workerId} disconnected");
                 }
             }
 
@@ -159,12 +155,8 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                         _ = Task.Run(() => HandleClientAsync(tcpClient));
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    if (_isRunning)
-                    {
-                        Console.WriteLine($"Error accepting client: {ex.Message}");
-                    }
                 }
             }
         }
@@ -181,17 +173,14 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                     var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
                     if (bytesRead == 0) break;
 
-                    var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    var trimmedMessage = message.Trim();
+                    var message = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
 
-                    // ✅ Hər iki event-i invoke et
-                    MessageReceived?.Invoke(this, trimmedMessage);
-                    MessageReceivedWithClient?.Invoke(this, (trimmedMessage, client));
+                    MessageReceived?.Invoke(this, message);
+                    MessageReceivedWithClient?.Invoke(this, (message, client));
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error handling client: {ex.Message}");
             }
             finally
             {
@@ -199,14 +188,13 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
                 {
                     _clients.Remove(client);
 
-                    // ✅ Təkmilləşdirilmiş cleanup
                     if (_clientWorkerMap.TryGetValue(client, out var workerId))
                     {
                         _workerClients.Remove(workerId);
                         _clientWorkerMap.Remove(client);
-                        Console.WriteLine($"Worker {workerId} disconnected (client cleanup)");
                     }
                 }
+
                 client.Close();
             }
         }

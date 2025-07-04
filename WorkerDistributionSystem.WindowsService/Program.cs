@@ -1,5 +1,5 @@
-﻿using WorkerDistributionSystem.Application.Services.Interfaces;
-using WorkerDistributionSystem.Application.Services.Implementations;
+﻿using WorkerDistributionSystem.Application.Services.Implementations;
+using WorkerDistributionSystem.Application.Services.Interfaces;
 using WorkerDistributionSystem.Infrastructure.Repositories.Implementations;
 using WorkerDistributionSystem.Infrastructure.Repositories.Interfaces;
 
@@ -7,9 +7,11 @@ namespace WorkerDistributionSystem.WindowsService;
 
 public static class Program
 {
+    private const string DistributionService = "WorkerDistributionService";
+
     public static void Main(string[] args)
     {
-        var host = Host.CreateDefaultBuilder(args)
+            var host = Host.CreateDefaultBuilder(args)
             .ConfigureApplicationServices()
             .ConfigureWindowsService()
             .ConfigureApplicationLogging()
@@ -22,18 +24,15 @@ public static class Program
     {
         host.ConfigureServices((context, services) =>
         {
-            // Infrastructure Layer
             services.AddSingleton<IWorkerRepository, WorkerRepository>();
             services.AddSingleton<ITaskRepository, TaskRepository>();
             services.AddSingleton<ICommunicationRepository, TcpCommunicationRepository>();
             services.AddSingleton<IServiceStatusRepository, ServiceStatusRepository>();
 
-            // Application Layer
             services.AddSingleton<IWorkerManagementService, WorkerManagementService>();
             services.AddSingleton<ITaskDistributionService, TaskDistributionService>();
             services.AddSingleton<IServiceStatusService, ServiceStatusService>();
 
-            // Background Service
             services.AddHostedService<WorkerDistributionBackgroundService>();
         });
 
@@ -44,7 +43,7 @@ public static class Program
     {
         host.UseWindowsService(options =>
         {
-            options.ServiceName = "WorkerDistributionService";
+            options.ServiceName = DistributionService;
         });
 
         return host;

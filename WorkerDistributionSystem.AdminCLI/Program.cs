@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WorkerDistributionSystem.AdminCLI.Commands;
@@ -7,12 +8,26 @@ namespace WorkerDistributionSystem.AdminCLI
 {
     public class Program
     {
+        private readonly IConfiguration _configuration;
+
+        public Program()
+        {
+            _configuration = ConfigureAppSettings() ?? throw new ArgumentNullException(nameof(IConfiguration));
+        }
+
         public static async Task Main(string[] args)
         {
             var host = CreateHostBuilder().Build();
             var commandProcessor = host.Services.GetRequiredService<ICommandProcessor>();
-
             await StartCLI(commandProcessor);
+        }
+
+        private IConfigurationRoot ConfigureAppSettings()
+        {
+            return new ConfigurationBuilder()
+             .SetBasePath(Directory.GetCurrentDirectory())
+             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+             .Build();
         }
 
         private static async Task StartCLI(ICommandProcessor commandProcessor)
@@ -67,28 +82,21 @@ namespace WorkerDistributionSystem.AdminCLI
             }
         }
 
-        private static bool IsClearCommand(string input)
-        {
-            return input.Equals("clear", StringComparison.OrdinalIgnoreCase) ||
-                         input.Equals("cls", StringComparison.OrdinalIgnoreCase);
-        }
+        private static bool IsClearCommand(string input) =>
+            input.Equals("clear", StringComparison.OrdinalIgnoreCase) ||
+            input.Equals("cls", StringComparison.OrdinalIgnoreCase);
 
-        private static bool IsHelpCommand(string input)
-        {
-            return input.Equals("help", StringComparison.OrdinalIgnoreCase) ||
-                         input.Equals("--help", StringComparison.OrdinalIgnoreCase);
-        }
+        private static bool IsHelpCommand(string input) =>
+            input.Equals("help", StringComparison.OrdinalIgnoreCase) ||
+            input.Equals("--help", StringComparison.OrdinalIgnoreCase);
 
-        private static bool IsExitCommand(string input)
-        {
-            return string.IsNullOrEmpty(input) ||
-                         input.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
-                         input.Equals("quit", StringComparison.OrdinalIgnoreCase);
-        }
+        private static bool IsExitCommand(string input) =>
+            string.IsNullOrEmpty(input) ||
+            input.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
+            input.Equals("quit", StringComparison.OrdinalIgnoreCase);
 
-        private static IHostBuilder CreateHostBuilder()
-        {
-            return Host.CreateDefaultBuilder()
+        private static IHostBuilder CreateHostBuilder() =>
+            Host.CreateDefaultBuilder()
                 .ConfigureServices(ConfigureApplicationDependencies)
                 .ConfigureLogging(logging =>
                 {
@@ -96,7 +104,6 @@ namespace WorkerDistributionSystem.AdminCLI
                     logging.AddConsole();
                     logging.SetMinimumLevel(LogLevel.Warning);
                 });
-        }
 
         private static void ConfigureApplicationDependencies(IServiceCollection services)
         {

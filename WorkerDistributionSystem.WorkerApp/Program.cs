@@ -10,29 +10,29 @@ namespace WorkerDistributionSystem.WorkerApp
     public class Program
     {
         private static string? _workerName;
-        private static Guid _workerId = Guid.Empty; // ✅ Əlavə
+
+        private static Guid _workerId = Guid.Empty;
+
         private static TcpClient? _tcpClient;
+
         private static NetworkStream? _stream;
+
         private static ILogger<Program>? _logger;
+
         private static CancellationTokenSource _cancellationTokenSource = new();
 
         public static async Task Main(string[] args)
         {
             var host = Host.CreateDefaultBuilder(args)
-                .ConfigureServices(services =>
-                {
-                    services.AddLogging(configure => configure.AddConsole());
-                })
+                .ConfigureServices(services => services.AddLogging(cfg => cfg.AddConsole()))
                 .Build();
 
             _logger = host.Services.GetRequiredService<ILogger<Program>>();
-
             _workerName = args.Length > 0 ? args[0] : $"Worker_{Environment.MachineName}_{DateTime.Now:HHmmss}";
 
             _logger.LogInformation($"Starting Worker: {_workerName}");
 
-            // ✅ Graceful shutdown
-            Console.CancelKeyPress += (sender, e) =>
+            Console.CancelKeyPress += (s, e) =>
             {
                 e.Cancel = true;
                 _cancellationTokenSource.Cancel();
@@ -43,12 +43,9 @@ namespace WorkerDistributionSystem.WorkerApp
                 await ConnectToServerAsync();
                 await RegisterWorkerAsync();
 
-                // ✅ Heartbeat task başlat
                 var heartbeatTask = Task.Run(() => SendHeartbeatAsync(_cancellationTokenSource.Token));
-
                 await ListenForTasksAsync();
 
-                // ✅ Heartbeat task-ı cancel et
                 _cancellationTokenSource.Cancel();
                 await heartbeatTask;
             }
@@ -66,39 +63,20 @@ namespace WorkerDistributionSystem.WorkerApp
 
         private static async Task ConnectToServerAsync()
         {
-            try
-            {
-                _tcpClient = new TcpClient();
-                await _tcpClient.ConnectAsync("127.0.0.1", 8080);
-                _stream = _tcpClient.GetStream();
-
-                _logger.LogInformation($"Connected to server on 127.0.0.1:8080");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to connect to server");
-                throw;
-            }
+            _tcpClient = new TcpClient();
+            await _tcpClient.ConnectAsync("127.0.0.1", 8080);
+            _stream = _tcpClient.GetStream();
+            _logger.LogInformation("Connected to server on 127.0.0.1:8080");
         }
 
         private static async Task RegisterWorkerAsync()
         {
-            try
-            {
-                var registerMessage = $"REGISTER:{_workerName}";
-                var data = Encoding.UTF8.GetBytes(registerMessage + "\n");
+            if (_stream is null) throw new InvalidOperationException("Network stream is null");
 
-                if (_stream != null)
-                {
-                    await _stream.WriteAsync(data, 0, data.Length);
-                    _logger.LogInformation($"Worker {_workerName} registration request sent");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to register worker");
-                throw;
-            }
+            var registerMessage = $"REGISTER:{_workerName}\n";
+            var data = Encoding.UTF8.GetBytes(registerMessage);
+            await _stream.WriteAsync(data, 0, data.Length);
+            _logger.LogInformation($"Worker {_workerName} registration request sent");
         }
 
         private static async Task ListenForTasksAsync()
@@ -107,18 +85,22 @@ namespace WorkerDistributionSystem.WorkerApp
 
             while (_tcpClient?.Connected == true && !_cancellationTokenSource.Token.IsCancellationRequested)
             {
+                int bytesRead = 0;
                 try
                 {
-                    if (_stream != null)
-                    {
-                        var bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length);
-                        if (bytesRead == 0) break;
+                    if (_stream is null) break;
 
-                        var message = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
-                        _logger.LogInformation($"Received message: {message}");
+                    bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length, _cancellationTokenSource.Token);
+                    if (bytesRead == 0) break;
 
-                        await ProcessMessageAsync(message);
-                    }
+                    var message = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
+                    _logger.LogInformation($"Received message: {message}");
+
+                    await ProcessMessageAsync(message);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -130,43 +112,31 @@ namespace WorkerDistributionSystem.WorkerApp
 
         private static async Task ProcessMessageAsync(string message)
         {
-            try
+            var parts = message.Split(':', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return;
+
+            var messageType = parts[0].ToUpperInvariant();
+
+            switch (messageType)
             {
-                var parts = message.Split(':', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 0) return;
+                case "REGISTERED":
+                    if (parts.Length >= 2 && Guid.TryParse(parts[1], out var workerId))
+                    {
+                        _workerId = workerId;
+                        _logger.LogInformation($"Worker registered with ID: {_workerId}");
+                    }
+                    break;
 
-                var messageType = parts[0].ToUpper();
+                case "EXECUTE":
+                    if (parts.Length >= 3)
+                    {
+                        var command = parts[1];
+                        var taskId = parts[2];
 
-                switch (messageType)
-                {
-                    case "REGISTERED": // ✅ Əlavə
-                        if (parts.Length >= 2 && Guid.TryParse(parts[1], out var workerId))
-                        {
-                            _workerId = workerId;
-                            _logger.LogInformation($"Worker registered with ID: {_workerId}");
-                        }
-                        break;
-
-                    case "EXECUTE":
-                        if (parts.Length >= 3)
-                        {
-                            var command = parts[1];
-                            var taskId = parts[2];
-
-                            Console.WriteLine($"[WORKER DEBUG] Executing command: {command} (Task: {taskId})");
-
-                            var result = await ExecuteCommandAsync(command);
-                            Console.WriteLine($"[WORKER DEBUG] Command result: {result}");
-
-                            await SendResultAsync(taskId, result);
-                            Console.WriteLine($"[WORKER DEBUG] Result sent for task: {taskId}");
-                        }
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error processing message: {message}");
+                        var result = await ExecuteCommandAsync(command);
+                        await SendResultAsync(taskId, result);
+                    }
+                    break;
             }
         }
 
@@ -174,33 +144,28 @@ namespace WorkerDistributionSystem.WorkerApp
         {
             try
             {
-                var processInfo = new ProcessStartInfo
+                var psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
                     Arguments = $"/c {command}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
                 };
 
-                using var process = Process.Start(processInfo);
-                if (process != null)
-                {
-                    await process.WaitForExitAsync();
+                using var process = Process.Start(psi);
+                if (process == null) return "ERROR: Failed to start process";
 
-                    var output = await process.StandardOutput.ReadToEndAsync();
-                    var error = await process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
 
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        return $"ERROR: {error}";
-                    }
+                var output = await process.StandardOutput.ReadToEndAsync();
+                var error = await process.StandardError.ReadToEndAsync();
 
-                    return string.IsNullOrEmpty(output) ? "Command executed successfully" : output.Trim();
-                }
+                if (!string.IsNullOrWhiteSpace(error))
+                    return $"ERROR: {error.Trim()}";
 
-                return "ERROR: Failed to start process";
+                return string.IsNullOrWhiteSpace(output) ? "Command executed successfully" : output.Trim();
             }
             catch (Exception ex)
             {
@@ -212,9 +177,10 @@ namespace WorkerDistributionSystem.WorkerApp
         {
             try
             {
-                var resultMessage = $"RESULT:{taskId}:{_workerId}:{result}";
-                Console.WriteLine($"[DEBUG] Sending result: {resultMessage}");
+                var resultBytes = Encoding.UTF8.GetBytes(result);
+                var base64Result = Convert.ToBase64String(resultBytes);
 
+                var resultMessage = $"RESULT:{taskId}:{_workerId}:{base64Result}";
                 var data = Encoding.UTF8.GetBytes(resultMessage + "\n");
 
                 if (_stream != null)
@@ -229,34 +195,34 @@ namespace WorkerDistributionSystem.WorkerApp
             }
         }
 
-        // ✅ Heartbeat functionality
+
         private static async Task SendHeartbeatAsync(CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested && _tcpClient?.Connected == true)
             {
+                if (_workerId != Guid.Empty && _stream != null)
+                {
+                    var heartbeatMessage = $"HEARTBEAT:{_workerId}\n";
+                    var data = Encoding.UTF8.GetBytes(heartbeatMessage);
+
+                    try
+                    {
+                        await _stream.WriteAsync(data, 0, data.Length, cancellationToken);
+                        _logger?.LogDebug("Sent heartbeat");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Error sending heartbeat");
+                        break;
+                    }
+                }
+
                 try
                 {
-                    if (_workerId != Guid.Empty)
-                    {
-                        var heartbeatMessage = $"HEARTBEAT:{_workerId}";
-                        var data = Encoding.UTF8.GetBytes(heartbeatMessage + "\n");
-
-                        if (_stream != null)
-                        {
-                            await _stream.WriteAsync(data, 0, data.Length);
-                            _logger.LogDebug($"Sent heartbeat");
-                        }
-                    }
-
-                    await Task.Delay(30000, cancellationToken); // 30 saniyə
+                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error sending heartbeat");
                     break;
                 }
             }
@@ -268,11 +234,11 @@ namespace WorkerDistributionSystem.WorkerApp
             {
                 _stream?.Close();
                 _tcpClient?.Close();
-                _logger.LogInformation("Disconnected from server");
+                _logger?.LogInformation("Disconnected from server");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error disconnecting from server");
+                _logger?.LogError(ex, "Error disconnecting from server");
             }
 
             await Task.CompletedTask;

@@ -7,6 +7,7 @@ namespace WorkerDistributionSystem.Infrastructure.Repositories.Implementations
     public class WorkerRepository : IWorkerRepository
     {
         private static readonly List<Worker> _workers = new List<Worker>();
+
         private static readonly object _lock = new object();
 
         public Task<Guid> AddAsync(string workerName, int processId)
