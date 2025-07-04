@@ -16,7 +16,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DB8A8CCC-F62D-446C-8238-1D378408CF94}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
-		README.txt = README.txt
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerDistributionSystem.AdminCLI", "WorkerDistributionSystem.AdminCLI\WorkerDistributionSystem.AdminCLI.csproj", "{499900E9-77E2-41D4-92C5-2158EDE5B616}"
