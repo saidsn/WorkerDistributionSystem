@@ -326,42 +326,65 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
         {
             try
             {
-                //Console.WriteLine($"[DEBUG] Connecting to service...");
-
                 using var tcpClient = new TcpClient();
+
+                // ✅ Timeout əlavə et
+                tcpClient.ReceiveTimeout = 60000; // 60 saniyə
+                tcpClient.SendTimeout = 10000;    // 10 saniyə
+
                 await tcpClient.ConnectAsync("127.0.0.1", 8080);
-                //Console.WriteLine($"[DEBUG] Connected.");
 
                 var stream = tcpClient.GetStream();
                 var reader = new StreamReader(stream);
                 var writer = new StreamWriter(stream) { AutoFlush = true };
 
-                // ✅ Message gönder
                 await writer.WriteLineAsync($"ADMIN_EXECUTE:{command}");
-                //Console.WriteLine($"[DEBUG] Message sent: ADMIN_EXECUTE:{command}");
 
-                // ✅ İlk response'u bekle (TASK_QUEUED)
+                // İlk response
                 var firstResponse = await reader.ReadLineAsync();
-                //Console.WriteLine($"[DEBUG] First response: {firstResponse}");
+                Console.WriteLine($"[DEBUG] First response: {firstResponse}");
 
                 if (firstResponse?.StartsWith("TASK_QUEUED:") == true)
                 {
                     Console.WriteLine("Task queued successfully. Waiting for result...");
 
-                    // ✅ İkinci response'u bekle (RESULT)
-                    var secondResponse = await reader.ReadLineAsync();
-                    //Console.WriteLine($"[DEBUG] Second response: {secondResponse}");
+                    // ✅ Timeout ilə ikinci response
+                    var secondResponseTask = reader.ReadLineAsync();
+                    var timeoutTask = Task.Delay(30000); // 30 saniyə timeout
+
+                    var completedTask = await Task.WhenAny(secondResponseTask, timeoutTask);
+
+                    if (completedTask == timeoutTask)
+                    {
+                        Console.WriteLine("Timeout: No response received within 30 seconds");
+                        return;
+                    }
+
+                    var secondResponse = await secondResponseTask;
+                    Console.WriteLine($"[DEBUG] Second response: {secondResponse}");
 
                     if (secondResponse?.StartsWith("RESULT:") == true)
                     {
                         var result = secondResponse.Substring("RESULT:".Length);
                         Console.WriteLine($"Command Result: {result}");
                     }
+                    else
+                    {
+                        Console.WriteLine($"Unexpected response: {secondResponse}");
+                    }
+                }
+                else if (firstResponse?.StartsWith("ERROR:") == true)
+                {
+                    Console.WriteLine($"Error: {firstResponse.Substring("ERROR:".Length)}");
+                }
+                else
+                {
+                    Console.WriteLine($"Unexpected first response: {firstResponse}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DEBUG] Exception: {ex.Message}");
+                Console.WriteLine($"Execute command failed: {ex.Message}");
             }
         }
 
@@ -395,18 +418,5 @@ namespace WorkerDistributionSystem.AdminCLI.Commands
                 Console.WriteLine($"Worker '{workerName}' not found");
             }
         }
-
-        //private async Task HandleTaskResultAsync()
-        //{
-        //    if (_workerProcesses.TryGetValue(taskId, out var adminClient))
-        //    {
-        //        var adminStream = adminClient.GetStream();
-        //        var writer = new StreamWriter(adminStream) { AutoFlush = true };
-
-        //        await writer.WriteLineAsync($"RESULT:{result}");
-
-        //        _adminClients.Remove(taskId); // artıq lazım deyil
-        //    }
-        //}
     }
 }

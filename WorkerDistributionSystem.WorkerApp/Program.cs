@@ -153,10 +153,13 @@ namespace WorkerDistributionSystem.WorkerApp
                             var command = parts[1];
                             var taskId = parts[2];
 
-                            _logger.LogInformation($"Executing command: {command} (Task: {taskId})");
+                            Console.WriteLine($"[WORKER DEBUG] Executing command: {command} (Task: {taskId})");
 
                             var result = await ExecuteCommandAsync(command);
+                            Console.WriteLine($"[WORKER DEBUG] Command result: {result}");
+
                             await SendResultAsync(taskId, result);
+                            Console.WriteLine($"[WORKER DEBUG] Result sent for task: {taskId}");
                         }
                         break;
                 }
@@ -209,8 +212,9 @@ namespace WorkerDistributionSystem.WorkerApp
         {
             try
             {
-                // ✅ WorkerId əlavə et
                 var resultMessage = $"RESULT:{taskId}:{_workerId}:{result}";
+                Console.WriteLine($"[DEBUG] Sending result: {resultMessage}");
+
                 var data = Encoding.UTF8.GetBytes(resultMessage + "\n");
 
                 if (_stream != null)

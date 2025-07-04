@@ -11,18 +11,21 @@ public class WorkerDistributionBackgroundService : BackgroundService
     private readonly ICommunicationRepository _communicationRepository;
     private readonly IWorkerManagementService _workerManagementService;
     private readonly ITaskDistributionService _taskDistributionService;
+    private readonly IServiceStatusService _serviceStatusService;
     private readonly Dictionary<Guid, TcpClient> _adminClients = new();
 
     public WorkerDistributionBackgroundService(
         ILogger<WorkerDistributionBackgroundService> logger,
         ICommunicationRepository communicationRepository,
         IWorkerManagementService workerManagementService,
-        ITaskDistributionService taskDistributionService)
+        ITaskDistributionService taskDistributionService,
+        IServiceStatusService serviceStatusService)
     {
         _logger = logger;
         _communicationRepository = communicationRepository;
         _workerManagementService = workerManagementService;
         _taskDistributionService = taskDistributionService;
+        _serviceStatusService = serviceStatusService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
@@ -31,7 +34,10 @@ public class WorkerDistributionBackgroundService : BackgroundService
 
         try
         {
+            await _serviceStatusService.SetServiceRunningAsync(true);
+
             await _communicationRepository.StartAsync();
+
             _logger.LogInformation("TCP Communication service started on port 8080");
 
             _communicationRepository.MessageReceivedWithClient += OnMessageReceivedWithClient;
@@ -57,6 +63,7 @@ public class WorkerDistributionBackgroundService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Fatal error in Worker Distribution Service");
+            await _serviceStatusService.SetServiceRunningAsync(false);
             throw;
         }
     }
@@ -67,6 +74,8 @@ public class WorkerDistributionBackgroundService : BackgroundService
 
         try
         {
+            await _serviceStatusService.SetServiceRunningAsync(false);
+
             if (_communicationRepository != null)
             {
                 _communicationRepository.MessageReceivedWithClient -= OnMessageReceivedWithClient;
@@ -86,38 +95,57 @@ public class WorkerDistributionBackgroundService : BackgroundService
     {
         try
         {
+            Console.WriteLine("[DEBUG] MonitorAndDistributeTasksAsync started");
+
             var workers = await _workerManagementService.GetAllWorkersAsync();
             var idleWorkers = workers.Where(w => w.Status == WorkerStatus.Idle).ToList();
 
-            _logger.LogInformation($"Total workers: {workers.Count}, Idle workers: {idleWorkers.Count}");
+            Console.WriteLine($"[DEBUG] Total workers: {workers.Count}, Idle workers: {idleWorkers.Count}");
 
             var queueCount = await _taskDistributionService.GetQueueCountAsync();
+            Console.WriteLine($"[DEBUG] Tasks in queue: {queueCount}");
+
             if (queueCount > 0 && idleWorkers.Any())
             {
-                _logger.LogInformation($"Tasks in queue: {queueCount}");
+                Console.WriteLine($"[DEBUG] Processing tasks from queue...");
 
                 foreach (var worker in idleWorkers)
                 {
                     var nextTask = await _taskDistributionService.GetNextTaskAsync(worker.Id);
                     if (nextTask != null)
                     {
-                        _logger.LogInformation($"Assigning task '{nextTask.Command}' to worker {worker.Name}");
+                        Console.WriteLine($"[DEBUG] Assigning task '{nextTask.Command}' (ID: {nextTask.Id}) to worker {worker.Name}");
 
                         var taskMessage = $"EXECUTE:{nextTask.Command}:{nextTask.Id}";
+                        Console.WriteLine($"[DEBUG] Sending message to worker: {taskMessage}");
+
                         var sent = await _communicationRepository.SendMessageAsync(worker.Id, taskMessage);
 
-                        if (!sent)
+                        if (sent)
                         {
-                            _logger.LogWarning($"Failed to send task to worker {worker.Id}. Marking as disconnected.");
-                            // Worker-i disconnect et
+                            Console.WriteLine($"[DEBUG] Task sent successfully to worker {worker.Name}");
+                            await _workerManagementService.UpdateStatusAsync(worker.Id, WorkerStatus.Busy);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[DEBUG] Failed to send task to worker {worker.Id}. Marking as disconnected.");
                             await _communicationRepository.DisconnectWorkerAsync(worker.Id);
                         }
                     }
+                    else
+                    {
+                        Console.WriteLine($"[DEBUG] No tasks available for worker {worker.Name}");
+                    }
                 }
+            }
+            else
+            {
+                Console.WriteLine($"[DEBUG] No tasks to process (QueueCount: {queueCount}, IdleWorkers: {idleWorkers.Count})");
             }
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[DEBUG] Error in MonitorAndDistributeTasksAsync: {ex.Message}");
             _logger.LogError(ex, "Error in task distribution");
         }
     }
@@ -160,37 +188,34 @@ public class WorkerDistributionBackgroundService : BackgroundService
                     if (parts.Length >= 2)
                     {
                         var command = string.Join(":", parts.Skip(1));
-                        Console.WriteLine($"[DEBUG] Processing command: {command}");
+                        Console.WriteLine($"[SERVICE DEBUG] Processing command: {command}");
 
                         var allWorkers = await _workerManagementService.GetAllWorkersAsync();
-                        Console.WriteLine($"[DEBUG] Total workers in service: {allWorkers.Count}");
-
-                        foreach (var worker in allWorkers)
-                        {
-                            Console.WriteLine($"[DEBUG] Worker: {worker.Name} - Status: {worker.Status}");
-                        }
+                        Console.WriteLine($"[SERVICE DEBUG] Total workers: {allWorkers.Count}");
 
                         var idleWorker = allWorkers.FirstOrDefault(w => w.Status == WorkerStatus.Idle);
 
                         if (idleWorker != null)
                         {
-                            Console.WriteLine($"[DEBUG] Found idle worker: {idleWorker.Name}");
+                            Console.WriteLine($"[SERVICE DEBUG] Found idle worker: {idleWorker.Name}");
 
                             var taskId = await _taskDistributionService.ExecuteCommandAsync(command, idleWorker.Id);
+                            Console.WriteLine($"[SERVICE DEBUG] Task created with ID: {taskId}");
 
                             lock (_adminClients)
                             {
                                 _adminClients[taskId] = data.client;
+                                Console.WriteLine($"[SERVICE DEBUG] AdminCLI client registered for task {taskId}");
                             }
 
                             var stream = data.client.GetStream();
-                            var response = Encoding.UTF8.GetBytes($"TASK_QUEUED:{command}\n");
+                            var response = Encoding.UTF8.GetBytes($"TASK_QUEUED:{taskId}\n");
                             await stream.WriteAsync(response, 0, response.Length);
+                            Console.WriteLine($"[SERVICE DEBUG] Sent TASK_QUEUED response");
                         }
                         else
                         {
-                            Console.WriteLine($"[DEBUG] No idle workers available");
-
+                            Console.WriteLine($"[SERVICE DEBUG] No idle workers available");
                             var stream = data.client.GetStream();
                             var response = Encoding.UTF8.GetBytes($"ERROR:No idle workers available\n");
                             await stream.WriteAsync(response, 0, response.Length);
@@ -230,22 +255,30 @@ public class WorkerDistributionBackgroundService : BackgroundService
     {
         try
         {
+            Console.WriteLine($"[DEBUG] HandleTaskResultAsync called with TaskId: {taskIdString}, WorkerId: {workerIdString}");
+
             if (Guid.TryParse(taskIdString, out var taskId) && Guid.TryParse(workerIdString, out var workerId))
             {
                 var status = result.StartsWith("ERROR:") ? WorkerTaskStatus.Failed : WorkerTaskStatus.Completed;
 
                 await _taskDistributionService.UpdateTaskResultAsync(taskId, result, status);
+                await _workerManagementService.UpdateStatusAsync(workerId, WorkerStatus.Idle);
 
-                _logger.LogInformation($"Task {taskId} from Worker {workerId} completed with status: {status}");
+                _logger.LogInformation($"Task {taskId} completed, Worker {workerId} set to Idle");
 
-                // ✅ Admin client'i lock içinde al, sonra lock dışında kullan
+                // ✅ Admin client-i lock içində al
                 TcpClient? adminClient = null;
-
                 lock (_adminClients)
                 {
                     if (_adminClients.TryGetValue(taskId, out adminClient))
                     {
                         _adminClients.Remove(taskId);
+                        Console.WriteLine($"[DEBUG] Found AdminCLI client for task {taskId}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[DEBUG] No AdminCLI client found for task {taskId}");
+                        Console.WriteLine($"[DEBUG] Available clients: {string.Join(", ", _adminClients.Keys)}");
                     }
                 }
 
@@ -254,22 +287,31 @@ public class WorkerDistributionBackgroundService : BackgroundService
                 {
                     try
                     {
+                        Console.WriteLine($"[DEBUG] Sending result back to AdminCLI: {result}");
+
                         var stream = adminClient.GetStream();
                         var writer = new StreamWriter(stream) { AutoFlush = true };
 
                         await writer.WriteLineAsync($"RESULT:{result}");
 
+                        Console.WriteLine($"[DEBUG] Result sent successfully");
                         _logger.LogInformation($"Result sent back to AdminCLI: {result}");
                     }
                     catch (Exception ex)
                     {
+                        Console.WriteLine($"[DEBUG] Error sending result back: {ex.Message}");
                         _logger.LogError(ex, "Error sending result back to AdminCLI");
                     }
                 }
             }
+            else
+            {
+                Console.WriteLine($"[DEBUG] Invalid TaskId or WorkerId format");
+            }
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[DEBUG] Exception in HandleTaskResultAsync: {ex.Message}");
             _logger.LogError(ex, $"Error updating task result");
         }
     }
@@ -285,12 +327,9 @@ public class WorkerDistributionBackgroundService : BackgroundService
                 {
                     _logger.LogDebug($"Heartbeat received from worker {workerId}");
 
-                    // Worker-in status-unu yenilə
                     if (worker.Status == WorkerStatus.Disconnected)
                     {
                         _logger.LogInformation($"Worker {workerId} reconnected via heartbeat");
-                        // Status-u Connected et
-                        // Bu üçün WorkerRepository-də UpdateStatus method lazımdır
                     }
                 }
             }

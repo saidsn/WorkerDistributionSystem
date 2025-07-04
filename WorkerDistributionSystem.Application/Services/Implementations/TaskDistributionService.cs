@@ -24,10 +24,10 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
 
         public async Task<Guid> ExecuteCommandAsync(string command, Guid specificWorkerId)
         {
-            var service = await _serviceStatusService.GetStatusAsync();
-            if (!service.IsRunning)
+            var isRunning = await _serviceStatusService.IsServiceRunningAsync();
+            if (!isRunning)
             {
-                throw new Exception($"Service is not running! Please start service");
+                throw new Exception("Service is not running! Please start service");
             }
 
             var taskId = await _taskRepository.EnqueueTaskAsync(command, specificWorkerId);
@@ -65,8 +65,6 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
 
             if (task != null)
             {
-                //Console.WriteLine($"Task '{task.Command}' assigned to Worker {workerId}");
-
                 await _workerRepository.UpdateStatusAsync(workerId, WorkerStatus.Busy);
             }
 
@@ -86,7 +84,9 @@ namespace WorkerDistributionSystem.Application.Services.Implementations
 
         public async Task<int> GetQueueCountAsync()
         {
-            return await _taskRepository.GetQueueCountAsync();
+            var count = await _taskRepository.GetQueueCountAsync();
+            Console.WriteLine($"[DEBUG] GetQueueCountAsync returned: {count}");
+            return count;
         }
     }
 }
